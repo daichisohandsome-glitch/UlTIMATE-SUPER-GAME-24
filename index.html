@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GAME 24</title>
+
+<style>
+:root{
+  --bg:#0b0f1a;
+  --card:#11162a;
+  --accent:#00ff9c;
+  --text:#e8f1ff;
+}
+body{
+  margin:0;
+  font-family:sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  display:flex;
+  justify-content:center;
+}
+.app{max-width:420px;width:100%;padding:16px}
+h1{text-align:center;color:var(--accent)}
+
+.panel{
+  background:var(--card);
+  padding:16px;
+  border-radius:14px;
+  margin-bottom:12px;
+  box-shadow:0 0 20px #00ff9c33;
+}
+.row{display:flex;flex-wrap:wrap;justify-content:center}
+
+button{
+  padding:14px;
+  margin:6px;
+  font-size:22px;
+  min-width:64px;
+  border:none;
+  border-radius:12px;
+  background:#1b2340;
+  color:white;
+  transition:.15s;
+}
+button.active,
+button.op-active{
+  background:#00ff9c;
+  color:black;
+  box-shadow:0 0 12px #00ff9c;
+  transform:scale(1.05);
+}
+.equal{background:#ffcc00;color:black}
+
+/* แจ้งผล */
+.alert{
+  position:fixed;
+  inset:0;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  font-size:56px;
+  font-weight:bold;
+  z-index:10;
+  background:#000000cc;
+}
+.alert.correct{color:#00ff9c}
+.alert.wrong{color:#ff4d4d}
+.alert.hint{color:#00eaff}
+.alert.solve{color:#ffd700}
+
+.big-status{
+  display:flex;
+  justify-content:space-around;
+  font-size:32px;
+  font-weight:bold;
+}
+
+.neon{
+  --bg:#020202;
+  --card:#050505;
+  --accent:#ff00ff;
+}
+</style>
+</head>
+
+<body>
+<div class="app">
+  <h1>GAME 24</h1>
+
+  <div class="panel big-status">
+    ⏱ <span id="time">0</span>s
+    🏆 <span id="score">0</span>
+  </div>
+
+  <div class="panel row" id="nums"></div>
+
+  <div class="panel row" id="ops">
+    <button data-op="+" onclick="setOp('+')">+</button>
+    <button data-op="-" onclick="setOp('-')">−</button>
+    <button data-op="*" onclick="setOp('*')">×</button>
+    <button data-op="/" onclick="setOp('/')">÷</button>
+    <button class="equal" onclick="calculate()">=</button>
+  </div>
+
+  <div class="panel row">
+    <button onclick="hint()">🧠 Hint</button>
+    <button onclick="solve()">🧩 Solve</button>
+    <button onclick="newGame()">🔄 New</button>
+    <button onclick="toggleTheme()">🎨 Theme</button>
+  </div>
+</div>
+
+<audio id="winSound">
+  <source src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg">
+</audio>
+
+<script>
+let numbers=[], first=null, second=null, operator=null;
+let score=0, time=0, timer, neon=false;
+
+const nums=document.getElementById("nums");
+const timeEl=document.getElementById("time");
+const scoreEl=document.getElementById("score");
+const winSound=document.getElementById("winSound");
+const ops=document.getElementById("ops");
+
+function newGame(){
+  numbers=[1,1,1,1].map(()=>Math.floor(Math.random()*9)+1);
+  first=second=operator=null;
+  render();
+  time=0;
+  clearInterval(timer);
+  timer=setInterval(()=>{time++;timeEl.textContent=time},1000);
+  clearOpHighlight();
+}
+
+function render(){
+  nums.innerHTML="";
+  numbers.forEach((n,i)=>{
+    const b=document.createElement("button");
+    b.textContent=n;
+    if(first===i||second===i) b.classList.add("active");
+    b.onclick=()=>selectNum(i);
+    nums.appendChild(b);
+  });
+}
+
+function selectNum(i){
+  if(first===null) first=i;
+  else if(operator && second===null) second=i;
+  else first=i;
+  render();
+}
+
+function clearOpHighlight(){
+  ops.querySelectorAll("button").forEach(b=>b.classList.remove("op-active"));
+}
+
+function setOp(op){
+  operator=op;
+  clearOpHighlight();
+  ops.querySelectorAll("button").forEach(b=>{
+    if(b.dataset.op===op) b.classList.add("op-active");
+  });
+}
+
+function showAlert(text,type){
+  const a=document.createElement("div");
+  a.className="alert "+type;
+  a.textContent=text;
+  document.body.appendChild(a);
+  setTimeout(()=>a.remove(),900);
+}
+
+function calculate(){
+  if(first===null||second===null||!operator) return;
+
+  let a=numbers[first];
+  let b=numbers[second];
+  let r;
+
+  if(operator==="+") r=a+b;
+  if(operator==="-" ) r=a-b;
+  if(operator==="*") r=a*b;
+  if(operator==="/" && b!==0) r=a/b;
+
+  numbers=numbers.filter((_,i)=>i!==first && i!==second);
+  numbers.push(Math.round(r*100)/100);
+
+  first=second=operator=null;
+  clearOpHighlight();
+
+  if(numbers.length===1){
+    if(Math.abs(numbers[0]-24)<0.001){
+      score++;
+      scoreEl.textContent=score;
+      winSound.play();
+      showAlert("✔ ถูกต้อง!", "correct");
+      setTimeout(newGame,1000);
+    }else{
+      showAlert("✖ ผิด!", "wrong");
+    }
+  }
+  render();
+}
+
+function hint(){ showAlert("🧠 ลอง × หรือ ÷ ก่อน", "hint"); }
+function solve(){ showAlert("🧩 (a×b)+(c−d)", "solve"); }
+function toggleTheme(){
+  neon=!neon;
+  document.body.className=neon?"neon":"";
+}
+
+newGame();
+</script>
+</body>
+</html>
